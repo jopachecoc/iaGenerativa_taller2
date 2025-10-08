@@ -1,0 +1,9 @@
+langchain-community==0.3.30
+python-dotenv==1.1.1
+PyPDF2==3.0.1
+pandas==2.2.3
+pinecone==7.3.0
+langchain-pinecone==0.2.12
+uuid==1.30
+openpyxl==3.1.5
+
