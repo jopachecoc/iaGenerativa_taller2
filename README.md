@@ -1,6 +1,7 @@
 ---
 # 🧠 Segundo Taller de IA Generativa
-📅 **Última actualización:** 2025-10-11
+ - jonathan Pacheco
+ - Julio Morales
 ---
 
 ## 🚀 Fase 1: Selección de Componentes Clave del Sistema RAG
@@ -201,17 +202,17 @@ cd iaGenerativa_taller2
 ```
 
 ### 2. Crea y activa un entorno virtual
-
+```bash
 python -m venv .venv
 source .venv/Scripts/activate # En Git Bash o WSL
-
+```
 # En PowerShell: [Activate.ps1]
 
 ### 3. Instala las dependencias
-
+```bash
 python -m pip install --upgrade pip
 python -m pip install -r [requirements.txt]
-
+```
 ### 4. Configura las variables de entorno
 
 Debes tener las siguientes variables de entorno configuradas antes de ejecutar los scripts en el archivo .env en la raíz del proyecto:
@@ -221,9 +222,13 @@ PINECONE_API_KEY (obtén tu API key en https://www.pinecone.io/)
 
 🚦 Ejecución
 
-A. Procesar e indexar documentos (main2.py)
-B. Consultar el sistema RAG con LangChain (Taller1_Fase3_EcoMarket/rag_ejemplo.py)
-C. Consultar el sistema RAG con LlamaIndex (ragi_llamaindex.py)
-Coloca los documentos a indexar en una carpeta llamada docs en la raíz del proyecto.
-Ejecuta:
+- A. Procesar e indexar documentos (main2.py)
+- B. Consultar el sistema RAG con LangChain (Taller1_Fase3_EcoMarket/rag_ejemplo.py)
+- C. Consultar el sistema RAG con LlamaIndex (ragi_llamaindex.py)
+
+ ##### - Coloca los documentos a indexar en una carpeta llamada docs en la raíz del proyecto.
+ ##### - Ejecuta:
+   
+```bash
 python [ragi_llamaindex.py] "¿Puedo devolver un cepillo de dientes?"
+```
