@@ -1,6 +1,7 @@
 ---
 # 🧠 Segundo Taller de IA Generativa
-📅 **Última actualización:** 2025-10-11
+- jonathan Pacheco
+- Julio Morales
 ---
 
 ## 🚀 Fase 1: Selección de Componentes Clave del Sistema RAG
@@ -84,7 +85,7 @@ A continuación, un resumen de las opciones:
 #### ✅ **Conclusión**
 
 > Para **MVPs o validaciones**, ChromaDB es la opción más práctica.  
-> Sin embargo, para **EcoMarket**, que busca un equilibrio entre **escalabilidad y control**, **Weaviate** representa la mejor alternativa.
+> Sin embargo, para **EcoMarket**, que busca un equilibrio entre **escalabilidad y control**, **Weaviate** representa la mejor alternativa. **Para efectos del taller y las pruebas del repositorio se usará Pinecone como vector DB (ver sección de conclusiones).**
 
 ---
 
@@ -193,37 +194,117 @@ La calidad de los documentos y la forma de dividirlos tienen un impacto directo 
 
 ## ⚙️ Instalación y Configuración
 
-### 1. Clona el repositorio y entra al directorio del proyecto
+Requisitos previos
+
+- Python 3.8+ (recomendado 3.11). Verifica con:
+  - python --version
+- Git y conexión a Internet.
+- Cuentas/keys:
+  - JINA_API_KEY (https://jina.ai/api-dashboard/embedding)
+  - PINECONE_API_KEY (https://www.pinecone.io/)
+
+1. Clonar el repositorio
 
 ```bash
 git clone <URL_DEL_REPO>
 cd iaGenerativa_taller2
 ```
 
-### 2. Crea y activa un entorno virtual
+2. Crear y activar un entorno virtual (Git Bash)
 
+```bash
 python -m venv .venv
-source .venv/Scripts/activate # En Git Bash o WSL
+source .venv/Scripts/activate    # Git Bash / WSL
+# PowerShell:
+# [Activate.ps1]
+# CMD:
+# [activate.bat]
+```
 
-# En PowerShell: [Activate.ps1]
+Si "pip" no se encuentra, usa:
 
-### 3. Instala las dependencias
+```bash
+py -3 -m ensurepip --upgrade
+py -3 -m pip install --upgrade pip
+```
 
+3. Instalar las dependencias
+
+```bash
 python -m pip install --upgrade pip
 python -m pip install -r [requirements.txt]
+```
 
-### 4. Configura las variables de entorno
+4. Configurar las variables de entorno
 
-Debes tener las siguientes variables de entorno configuradas antes de ejecutar los scripts en el archivo .env en la raíz del proyecto:
+- Debes tener las siguientes variables de entorno configuradas antes de ejecutar los scripts en el archivo .env en la raíz del proyecto:
 
 JINA_API_KEY (obtén tu API key en https://jina.ai/api-dashboard/embedding)
 PINECONE_API_KEY (obtén tu API key en https://www.pinecone.io/)
 
-🚦 Ejecución
+- O exporta en la sesión (Git Bash):
 
-A. Procesar e indexar documentos (main2.py)
-B. Consultar el sistema RAG con LangChain (Taller1_Fase3_EcoMarket/rag_ejemplo.py)
-C. Consultar el sistema RAG con LlamaIndex (ragi_llamaindex.py)
-Coloca los documentos a indexar en una carpeta llamada docs en la raíz del proyecto.
-Ejecuta:
+```bash
+export JINA_API_KEY="jina_key"
+export PINECONE_API_KEY="pinecone_key"
+```
+
+-- PowerShell:
+
+```bash
+$env:JINA_API_KEY="jina_key"
+$env:PINECONE_API_KEY="pinecone_key"
+```
+
+5. Comprobar instalación de Pinecone y Jina
+
+```bash
+python -m pip show pinecone
+python -m pip show langchain-community
+```
+
+6. Ejecutar scripts principales
+
+- Indexar / procesar documento (main2.py):
+
+```bash
+python [main2.py] path/to/file.pdf
+# soporta .pdf, .txt, .xls, .xlsx
+```
+
+- Consultar con LangChain (rag_ejemplo.py):
+
+```bash
+cd Taller1_Fase3_EcoMarket
+python [rag_ejemplo.py] "¿Pregunta sobre EcoMarket?"
+```
+
+- Consultar con LlamaIndex (ragi_llamaindex.py):
+
+```bash
+# colocar si no exite los documentos en ./docs antes de ejecutar
 python [ragi_llamaindex.py] "¿Puedo devolver un cepillo de dientes?"
+```
+
+7. Atajos y solución de problemas comunes
+
+- "pip: command not found" -> usar py -3 -m pip ... o agregar Python al PATH durante la instalación.
+- En Git Bash, si la activación falla pruebe source .venv/Scripts/activate.
+- PowerShell bloquea scripts: ejecutar una vez (como usuario):
+
+```bash
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+- Si 'uv' es requerido en docs: no es obligatorio. Ejecuta los scripts con python ... o instala uv en el ven con:
+
+```bash
+python -m pip install uv
+.venv/Scripts/uv.exe run [main2.py] # si deseas usar uv
+```
+
+8. Notas finales
+
+- Para efectos del taller y las pruebas del repositorio se usará Pinecone como vector DB.
+- Asegúrese de tener las keys y conexión a Internet para Jina y Pinecone.
+- Los scripts cargan .env con python-dotenv si existe; usar .env facilita reproducibilidad.
