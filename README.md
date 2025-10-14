@@ -1,6 +1,7 @@
 ---
 # 🧠 Segundo Taller de IA Generativa
-- jonathan Pacheco
+
+- Jonathan Pacheco
 - Julio Morales
 ---
 
