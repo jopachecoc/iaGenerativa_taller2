@@ -1,0 +1,42 @@
+[
+    {
+        "pregunta": "¿Cuánto tarda en llegar un pedido?",
+        "respuesta": "Los envíos tardan entre 2 y 5 días hábiles dependiendo de la ciudad."
+    },
+    {
+        "pregunta": "¿Qué métodos de pago aceptan?",
+        "respuesta": "Tarjetas débito, crédito, PSE y contraentrega en ciudades principales."
+    },
+    {
+        "pregunta": "¿Puedo devolver un producto de higiene?",
+        "respuesta": "No, por razones sanitarias no se aceptan devoluciones de productos abiertos."
+    },
+    {
+        "pregunta": "¿Los productos tienen garantía?",
+        "respuesta": "Sí, mínimo de 6 meses por defectos de fabricación."
+    },
+    {
+        "pregunta": "¿Cómo solicito una devolución?",
+        "respuesta": "En tu cuenta EcoMarket, sección 'Mis Pedidos' → 'Solicitar Devolución'."
+    },
+    {
+        "pregunta": "¿Cuánto tarda un reembolso?",
+        "respuesta": "Hasta 7 días hábiles luego de recibir el producto en bodega."
+    },
+    {
+        "pregunta": "¿Ofrecen envíos internacionales?",
+        "respuesta": "Por ahora solo dentro del territorio nacional."
+    },
+    {
+        "pregunta": "¿Dónde puedo consultar mis puntos Eco?",
+        "respuesta": "En el panel de usuario, sección 'EcoPuntos'."
+    },
+    {
+        "pregunta": "¿Qué hago si mi producto llega dañado?",
+        "respuesta": "Reportar en menos de 3 días hábiles adjuntando fotos al soporte."
+    },
+    {
+        "pregunta": "¿Puedo cambiar un producto por otro?",
+        "respuesta": "Sí, dentro de 10 días calendario, sujeto a disponibilidad."
+    }
+]

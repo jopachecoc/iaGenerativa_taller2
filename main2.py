@@ -22,68 +22,69 @@
 
 
 import os
+import sys
+import argparse
+from uuid import uuid4
+from typing import List
+
 import pandas as pd
-import PyPDF2
-import pinecone
-
-
+from dotenv import load_dotenv
+from PyPDF2 import PdfReader
 from langchain_community.embeddings import JinaEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from PyPDF2 import PdfReader
+
+# NOTE: uso la API similar a la que tenías en el archivo original
 from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
-from uuid import uuid4
 from langchain_core.documents import Document
 
 #from langchain_pinecone.vectorstores import Pinecone, PineconeVectorStore
 
 
 # Función para leer PDF
-def leer_pdf(ruta_pdf):
-    with open(ruta_pdf, "rb") as file:
-        reader = PdfReader(file)
-        texto = ""
-        for page in reader.pages:
-            texto += page.extract_text()
-    return texto
-
-# Función para leer TXT
-def leer_txt(ruta_txt):
-    with open(ruta_txt, "r", encoding="utf-8") as file:
-        return file.read()
-
-# Función para leer Excel
-def leer_excel(ruta_excel):
-    df = pd.read_excel(ruta_excel, engine='openpyxl')
+def leer_pdf(ruta_pdf: str) -> str:
+    """Leer todo el texto de un PDF y devolverlo como string."""
     texto = ""
-    for col in df.columns:
-        texto += df[col].to_string(index=False) + "\n"
+    with open(ruta_pdf, "rb") as f:
+        reader = PdfReader(f)
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                texto += page_text + "\n"
     return texto
 
-# Inicializar embeddings
-def inicializar_embeddings():
+
+def leer_txt(ruta_txt: str) -> str:
+    """Leer un .txt y devolver su contenido."""
+    with open(ruta_txt, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def leer_excel(ruta_excel: str) -> str:
+    """Leer un Excel y concatenar filas en texto (usa pandas + openpyxl)."""
+    df = pd.read_excel(ruta_excel, engine="openpyxl")
+    # Convertir cada fila en una línea de texto
+    filas = df.astype(str).apply(lambda r: " ".join(r.values), axis=1)
+    return "\n".join(filas.tolist())
+
+
+def inicializar_embeddings() -> JinaEmbeddings:
+    """Inicializa JinaEmbeddings usando la variable de entorno JINA_API_KEY."""
     api_key = os.getenv("JINA_API_KEY")
     if not api_key:
         raise ValueError("❌ No se encontró la variable de entorno JINA_API_KEY")
-    
-    return JinaEmbeddings(
-        jina_api_key=api_key,
-        model_name="jina-embeddings-v2-base-es"
-    )
+    return JinaEmbeddings(jina_api_key=api_key, model_name="jina-embeddings-v2-base-es")
 
 
-
-def inicializar_pinecone():
-
+def inicializar_pinecone(index_name: str = "tarea-jj-index"):
+    """Inicializa/abre un índice en Pinecone y devuelve el objeto Index."""
     pinecone_api_key = os.getenv("PINECONE_API_KEY")
     if not pinecone_api_key:
         raise ValueError("❌ No se encontró la variable de entorno PINECONE_API_KEY")
 
-    # Crear una instancia de Pinecone usando tu API Key
     pc = Pinecone(api_key=pinecone_api_key)
 
-    index_name = "tarea-jj-index"  # change if desired
-
+    # Si el índice no existe, crearlo (dimension debe coincidir con embeddings)
     if not pc.has_index(index_name):
         pc.create_index(
             name=index_name,
@@ -93,243 +94,83 @@ def inicializar_pinecone():
         )
 
     index = pc.Index(index_name)
-
-    return index#, vector_store
-
+    return index
 
 
+def insertar_embeddings_en_pinecone(embeddings: List[List[float]], chunks: List[str], index):
+    """
+    Inserta vectores en Pinecone.
+    Intenta el formato clásico (tupla) y, si falla, usa dicts.
+    """
+    vectors_for_upsert = []
+    for i, vec in enumerate(embeddings):
+        vid = f"doc_{i}_{uuid4().hex[:8]}"
+        metadata = {"text": chunks[i]}
+        # Preparar en forma que suelen aceptar clients nuevos/clásicos
+        vectors_for_upsert.append({"id": vid, "values": list(vec), "metadata": metadata})
 
-# Función para insertar embeddings en Pinecone
-def insertar_embeddings_en_pinecone(embeddings, chunks, index):
-    # Convertir los embeddings y los textos a un formato adecuado para Pinecone
-    vectors = [
-        (f"doc_{i}", embeddings[i], {"text": chunk})
-        for i, chunk in enumerate(chunks)
-    ]
- 
-    # Insertar los vectores en Pinecone
-    index.upsert(vectors)
+    # Muchos clientes Pinecone aceptan index.upsert(vectors=...)
+    try:
+        index.upsert(vectors=vectors_for_upsert)
+    except TypeError:
+        # alternativa: algunos clientes aceptan lista de tuplas (id, values, metadata)
+        try:
+            tuples = [(v["id"], v["values"], v["metadata"]) for v in vectors_for_upsert]
+            index.upsert(tuples)
+        except Exception as e:
+            raise RuntimeError("Upsert a Pinecone falló: " + str(e))
 
 
-# Procesar el chunking recursivo
-def chunking_recursivo(texto):
-    text_splitter = RecursiveCharacterTextSplitter(
+def chunking_recursivo(texto: str) -> List[str]:
+    """Divide el texto en chunks manejables usando RecursiveCharacterTextSplitter."""
+    splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=50,
-        separators=["\n\n", "\n", ".", " ", ""]
+        separators=["\n\n", "\n", ".", " ", ""],
     )
-    return text_splitter.split_text(texto)
-
-# Función para obtener embeddings de los chunks
-def obtener_embeddings(chunks, emb):
-    return emb.embed_documents(chunks)
+    return splitter.split_text(texto)
 
 
+def obtener_embeddings(chunks: List[str], emb_client: JinaEmbeddings) -> List[List[float]]:
+    """Obtiene embeddings para una lista de chunks con el cliente JinaEmbeddings."""
+    # embed_documents devuelve una lista de vectores
+    return emb_client.embed_documents(chunks)
 
 
-
-# Función principal para procesar el documento
-def procesar_documento(ruta_documento):
-    # Leer el documento dependiendo de su tipo
-    if ruta_documento.endswith(".pdf"):
+def procesar_documento(ruta_documento: str):
+    """Flujo principal: leer documento, chunkear, embedir y subir a Pinecone."""
+    ext = os.path.splitext(ruta_documento)[1].lower()
+    if ext == ".pdf":
         texto = leer_pdf(ruta_documento)
-    elif ruta_documento.endswith(".txt"):
+    elif ext == ".txt":
         texto = leer_txt(ruta_documento)
-    elif ruta_documento.endswith(".xlsx"):
+    elif ext in (".xls", ".xlsx"):
         texto = leer_excel(ruta_documento)
     else:
-        raise ValueError("Formato de archivo no soportado")
+        raise ValueError(f"Extensión no soportada: {ext}")
 
-    # Dividir el texto en chunks
+    if not texto.strip():
+        raise ValueError("El documento está vacío o no se pudo extraer texto.")
+
     chunks = chunking_recursivo(texto)
+    emb_client = inicializar_embeddings()
+    embeddings = obtener_embeddings(chunks, emb_client)
+    index = inicializar_pinecone()
+    insertar_embeddings_en_pinecone(embeddings, chunks, index)
 
-    # Inicializar embeddings
-    emb = inicializar_embeddings()
-    embeddings = obtener_embeddings(chunks, emb)
-
-    # Inicializar Pinecone
-    index=inicializar_pinecone()
-    vector_store = PineconeVectorStore(index=index, embedding=embeddings)
-
-    # cargar embeddings a pinecone
-    # Lista de IDs (pueden ser UUIDs o cualquier string único)
-    ids = [str(uuid4()) for _ in range(len(embeddings))]
+    print(f"✅ Proceso completado. Chunks: {len(chunks)}. Vectores subidos: {len(embeddings)}")
 
 
-
-##### aca 
-
-
-    # Crear Document por chunk
-    documents = [
-        Document(
-            page_content=chunk,
-            metadata={
-                "source": os.path.basename(ruta_documento),
-                "chunk_index": i
-            }
-        )
-        for i, chunk in enumerate(chunks)
-    ]
-
-    # Obtener embeddings
-    embeddings = obtener_embeddings([doc.page_content for doc in documents], emb)
-
-    # Subir con metadata
-    items = [
-        {
-            "id": str(uuid4()),
-            "values": embeddings[i],
-            "metadata": {
-                **documents[i].metadata,
-                "page_content": documents[i].page_content
-            }
-        }
-        for i in range(len(documents))
-    ]
-
-    index.upsert(vectors=items)
-
-
-
-
-### hasta aca
-
-
-
-
-    # Metadatos opcionales por vector
-#    metadatos = [
-#        {"source": "pdf1", "page": 1}
-#    ]
-#
-#    # Construir el payload para insertar
-#
-#
-#
-#
-#    items = [
-#        {
-#            "id": ids[i],
-#            "values": embeddings[i]
-#            #"metadata": metadatos[i]  # O eliminar esta línea si no tienes metadatos
-#        }
-#        for i in range(len(embeddings))
-#    ]
-#
-    # Subir a Pinecone
-    index.upsert(vectors=items)
-
-    print("✅ Embeddings subidos correctamente a Pinecone.")
-
-    #CONFIRMAR QUE SE SUBIERON BIEN
-    stats = index.describe_index_stats()
-    print(stats)
-
-
-
-    
-    print(f"🔹 Chunks generados para {ruta_documento}: {len(chunks)}")
-    print(f"🔹 Primer chunk: {chunks[0][:200]}...")  # Mostrar solo los primeros 200 caracteres
-    print(f"🔹 Embedding del primer chunk (primeros 5 valores): {embeddings[0][:5]}")
-    print(f"🔹 Largo de los Embeddings : {len(embeddings[1])}")
-    #print(vector_store)
-
-
-
-
-# Ejecutar con un archivo específico
 if __name__ == "__main__":
-    ruta_documento = "D:\\DESCARGAS\\AI\\tarea2\\Politica_Devoluciones.pdf"  # Cambia esto por el archivo que quieres procesar
-    procesar_documento(ruta_documento)
+    # cargar .env (para JINA_API_KEY / PINECONE_API_KEY)
+    load_dotenv()
 
+    parser = argparse.ArgumentParser(description="Procesar documento y subir embeddings a Pinecone")
+    parser.add_argument("ruta", help="Ruta al archivo (.pdf, .txt, .xls, .xlsx)")
+    args = parser.parse_args()
 
-
-
-
-
-
-
-
-
-
-
-
-#api_key = os.getenv("JINA_API_KEY")
-#if not api_key:
-#    raise ValueError("❌ No se encontró la variable de entorno JINA_API_KEY")
-#
-#emb = JinaEmbeddings(
-#    jina_api_key=os.getenv("JINA_API_KEY"),
-#    model_name="jina-embeddings-v2-base-es"
-#)
-#
-#
-## Texto de ejemplo
-#texto_largo = """
-#LangChain es una poderosa biblioteca para crear aplicaciones con modelos de lenguaje.
-#Permite encadenar LLMs con otras herramientas como búsquedas, bases de datos vectoriales, y más.
-#"""
-#
-## Inicializa el splitter
-#text_splitter = RecursiveCharacterTextSplitter(
-#    chunk_size=500,
-#    chunk_overlap=50,
-#    separators=["\n\n", "\n", ".", " ", ""],
-#)
-#
-## Divide el texto
-#chunks = text_splitter.split_text(texto_largo)
-#
-## Obtiene los embeddings
-#embeddings = emb.embed_documents(chunks)
-#
-#print(f"🔹 Chunks generados: {len(chunks)}")
-#print(f"🔹 Embedding del primer chunk (primeros 5 valores): {embeddings[0][:5]}")
-#
-
-
-
-
-
-# Embeder una consulta de ejemplo
-#emb_q = emb.embed_query("Hola, ¿cómo estás?")
-#print(emb_q)
-
-# Embeder documentos
-#emb_docs = emb.embed_documents(["Doc 1", "Otro documento"])
-#print(emb_docs)
-
-
-#####################
-#####################
-#####################
-#####################
-#####################
-#####################
-# vamos hacer el chunking recursivo
-#####################
-#####################
-#####################
-#####################
-#####################
-
-
-#from langchain.text_splitter import RecursiveCharacterTextSplitter
-
-#Crear el splitter recursivo
-#text_splitter = RecursiveCharacterTextSplitter(
-#    chunk_size=500,       # Tamaño del chunk
-#    chunk_overlap=100,    # Cuánto se solapan los chunks
-#)
-
-# Supón que tienes este documento
-#raw_text = """
-#La inteligencia artificial está transformando la industria. Los modelos de lenguaje, como los de OpenAI o Jina, permiten nuevas formas de interacción con la información. Al vectorizar el texto, podemos realizar búsquedas semánticas eficientes.
-#"""
-
-# Generar los chunks
-#documents = text_splitter.create_documents([raw_text])
-#print(f"Número de chunks generados: {len(documents)}")
-#for i, doc in enumerate(documents):
-#    print(f"Chunk {i+1}: {doc.page_content}\n")         
+    try:
+        procesar_documento(args.ruta)
+    except Exception as e:
+        print("Error:", e)
+        sys.exit(1)

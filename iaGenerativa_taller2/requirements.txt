@@ -1,0 +1,11 @@
+numpy
+pandas
+PyPDF2
+pinecone-client
+langchain
+langchain-pinecone
+langchain-community
+openpyxl
+requests
+fastapi
+rich
